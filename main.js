@@ -8,6 +8,7 @@ class LogoApp {
     // 狀態管理
     this.state = {
       hovered: false,
+      isTouching: false, // 手機觸控中的旗標
       currentRotationSpeed: 0.005,
       targetRotationSpeed: 0.005,
       baseSpeed: 0.008,
@@ -82,6 +83,8 @@ class LogoApp {
       passive: true,
     });
     window.addEventListener('touchend', () => this.onTouchEnd());
+    // 阻止長按出現瀏覽器右鍵選單（iOS Safari / Android Chrome）
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
 
     document.getElementById('loader').style.opacity = '0';
     setTimeout(() => document.getElementById('loader').remove(), 800);
@@ -159,11 +162,16 @@ class LogoApp {
   onTouchStart(event) {
     const touch = event.touches[0];
     if (!touch) return;
+    // 記錄觸點座標（用於傾斜效果）
     this.mouse.x = (touch.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(touch.clientY / window.innerHeight) * 2 + 1;
+    // 設旗標：持續維持快速旋轉，避免 touchend 座標歸零後 Raycaster 瞬間失去命中
+    this.state.isTouching = true;
   }
 
   onTouchEnd() {
+    this.state.isTouching = false;
+    // 延遲歸零座標，讓傾斜效果有時間平滑回正
     this.mouse.set(0, 0);
   }
 
@@ -179,8 +187,8 @@ class LogoApp {
     const intersects = this.raycaster.intersectObjects(this.logoGroup.children);
     const isIntersecting = intersects.length > 0;
 
-    // 物件大小效果
-    if (isIntersecting) {
+    // 物件大小效果：Raycaster 命中（桌機）或觸控中（手機）皆觸發
+    if (isIntersecting || this.state.isTouching) {
       this.state.targetRotationSpeed = this.state.fastSpeed;
       this.state.targetScale = 1.2;
     } else {
